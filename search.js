@@ -252,6 +252,10 @@ searchTool.PropertyPage = Backbone.View.extend({
 			var fromTimestamp = Date.parse(this.$(".from").datepicker("getDate", false)) || 0;
 			var toTimestamp = Date.parse(this.$(".to").datepicker("getDate", false)) || Date.now();
 			
+			//Milliseconds to seconds - probably not the best way.
+			fromTimestamp = Math.round(fromTimestamp / 1000);
+			toTimestamp = Math.round(toTimestamp / 1000);
+			
 			return field + ":" + fromTimestamp + ".." + toTimestamp;
 		}
 		
