@@ -11,7 +11,7 @@ searchTool = {
 searchTool.SearchBox = Backbone.View.extend({
 	events: {
 		'click .add-search-option': 'addProperty',
-		'click .update-button': 'refreshQuery',
+		'click .submit-button': 'submitQuery',
 		'change .syntax-checkbox': 'changeSyntax'
 	},
 	
@@ -37,32 +37,8 @@ searchTool.SearchBox = Backbone.View.extend({
 	},
 	
 	refreshQuery: function() {
-		var canUseLucene = true;
-		this.searchOptions.forEach(function(option) {
-			if (!option.canUseLucene()) {
-				canUseLucene = false;
-			}
-		});
-		
-		var checkbox = this.$(".syntax-checkbox");
-		
-		var shouldUseLucene;
-		if (!canUseLucene) {
-			checkbox.prop("disabled", true);
-			checkbox.prop("checked", false);
-			shouldUseLucene = false;
-		} else {
-			checkbox.prop("disabled", false);
-			shouldUseLucene = this.useLucene;
-			if (this.useLucene) {
-				checkbox.prop("checked", true);
-			} else {
-				checkbox.prop("checked", false);
-			}
-		}
-		
 		var query = "";
-		if (shouldUseLucene) {
+		if (this.shouldUseLucene()) {
 			this.searchOptions.forEach(function(option) {
 				query += option.toLuceneQuery() + " ";
 			});
@@ -79,6 +55,44 @@ searchTool.SearchBox = Backbone.View.extend({
 		// TODO: This is wrong - I would use this.$, but the context is wrong or something
 		// and it doesn't find the right one (when using the date picker).
 		/*this.*/$(".search-box").val(query);
+	},
+	
+	shouldUseLucene: function() {
+		var canUseLucene = true;
+		this.searchOptions.forEach(function(option) {
+			if (!option.canUseLucene()) {
+				canUseLucene = false;
+			}
+		});
+		
+		var checkbox = this.$(".syntax-checkbox");
+		
+		var shouldUseLucene;
+		if (!canUseLucene) {
+			checkbox.prop("disabled", true);
+			checkbox.prop("checked", false);
+			return false;
+		} else {
+			checkbox.prop("disabled", false);
+			if (this.useLucene) {
+				checkbox.prop("checked", true);
+			} else {
+				checkbox.prop("checked", false);
+			}
+			
+			return this.useLucene;
+		}
+	},
+	
+	submitQuery: function() {
+		this.refreshQuery();
+		
+		var q = $(".search-box").val();
+		
+		var t = "all", sort = "relevance";
+		var syntax = this.shouldUseLucene() ? "lucene" : "cloudsearch";
+		
+		window.open("https://www.reddit.com/search?q=" + escape(q) + "&t=" + t + "&sort=" + sort + "&syntax=" + syntax, "_blank");
 	}
 })
 
