@@ -266,7 +266,26 @@ searchTool.PropertyPage = Backbone.View.extend({
 		if (this.type === "boolean") {
 			return this.field + ":" + (this.$(".query-value").is(':checked') ? 'true' : 'false');
 		} else if (this.type === "text") {
-			return this.field + ":\"" + this.$(".query-value").val() + "\"";
+			var value = this.$(".query-value").val().trim();
+			
+			if (value.indexOf(" ") === -1) {
+				return this.field + ":\"" + value + "\"";
+			}
+			
+			var tokens = value.split(" ");
+			//val will either be 'and' or 'or' here; 'phrase' is not allowed in
+			//Lucene queries elsewhere
+			var joiner = this.$(".selectivity").val().toUpperCase();
+			
+			var query = "";
+			for (var i = 0; i < tokens.length; i++) {
+				query += this.field + ":" + tokens[i];
+				if (i !== tokens.length - 1) {
+					query += " " + joiner + " ";
+				}
+			}
+			
+			return query;
 		} else if (this.type === "date") {
 			return "invalid";
 		}
