@@ -146,6 +146,7 @@ searchTool.PropertyPage = Backbone.View.extend({
 			"<option value=\"and\">All of these words</option>" +
 			"<option value=\"or\">Any of these words</option>" +
 			"<option value=\"phrase\">All of these words in this order</option>" +
+			"<option value=\"not\">None of these words</option>" +
 			"</select>" +
 			"<input type=\"text\" class=\"query-value\">",
 	
@@ -225,7 +226,11 @@ searchTool.PropertyPage = Backbone.View.extend({
 			var selectivity = this.$(".selectivity").val();
 			var query = this.$(".query-value").val();
 			if (query.indexOf(" ") === -1) {
-				return "(field " + field + " '" + query + "')"
+				if (selectivity === "not") {
+					return "(not (field " + field + " '" + query + "'))"
+				} else {
+					return "(field " + field + " '" + query + "')"
+				}
 			}
 			if (selectivity === "and") {
 				var tokens = query.split(" ");
@@ -244,6 +249,15 @@ searchTool.PropertyPage = Backbone.View.extend({
 					result += "(field " + field + " '" + token + "')";
 				});
 				result += ")";
+				return result;
+			} else if (selectivity === "not") {
+				var tokens = query.split(" ");
+				var result = "(not (and";
+				tokens.forEach(function(token) {
+					result += " ";
+					result += "(field " + field + " '" + token + "')";
+				});
+				result += "))";
 				return result;
 			} else if (selectivity === "phrase") {
 				return "(field " + field + " '\"" + query + "\"')";
@@ -275,6 +289,8 @@ searchTool.PropertyPage = Backbone.View.extend({
 				// the text.
 				if (selectivity === "and" || tokens.length === 1) {
 					return this.escapeLuceneCharacters(value);
+				} else if (selectivity === "not") {
+					return "NOT (" + this.escapeLuceneCharacters(value) + ")";
 				} else {
 					var query = "(";
 					for (var i = 0; i < tokens.length; i++) {
@@ -289,14 +305,26 @@ searchTool.PropertyPage = Backbone.View.extend({
 			}
 			
 			if (tokens.length === 1) {
-				return this.field + ":" + this.escapeLuceneCharacters(value);
+				if (selectivity === "not") {
+					return "NOT " +this.field + ":" + this.escapeLuceneCharacters(value);
+				} else {
+					return this.field + ":" + this.escapeLuceneCharacters(value);
+				}
 			}
 			
 			//val will either be 'and' or 'or' here; 'phrase' is not allowed in
 			//Lucene queries elsewhere
-			var joiner = selectivity.toUpperCase();
+			var joiner;
+			var query;
 			
-			var query = this.field + ":(";
+			if (selectivity === "not") {
+				joiner = "AND";
+				query = "NOT " + this.field + ":(";
+			} else {
+				joiner = selectivity.toUpperCase();
+				query = this.field + ":(";
+			}
+			
 			for (var i = 0; i < tokens.length; i++) {
 				query += this.escapeLuceneCharacters(tokens[i]);
 				if (i !== tokens.length - 1) {
