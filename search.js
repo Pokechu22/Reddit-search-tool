@@ -276,13 +276,14 @@ searchTool.PropertyPage = Backbone.View.extend({
 				if (selectivity === "and" || tokens.length === 1) {
 					return value;
 				} else {
-					var query = "";
+					var query = "(";
 					for (var i = 0; i < tokens.length; i++) {
-						query += tokens[i];
+						query += "\"" + tokens[i] + "\"";
 						if (i !== tokens.length - 1) {
 							query += " OR ";
 						}
 					}
+					query += ")";
 					return query;
 				}
 			}
@@ -295,13 +296,14 @@ searchTool.PropertyPage = Backbone.View.extend({
 			//Lucene queries elsewhere
 			var joiner = selectivity.toUpperCase();
 			
-			var query = "";
+			var query = this.field + ":(";
 			for (var i = 0; i < tokens.length; i++) {
-				query += this.field + ":\"" + tokens[i] + "\"";
+				query += "\"" + tokens[i] + "\"";
 				if (i !== tokens.length - 1) {
 					query += " " + joiner + " ";
 				}
 			}
+			query += ")";
 			
 			return query;
 		} else if (this.type === "date") {
