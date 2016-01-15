@@ -266,20 +266,38 @@ searchTool.PropertyPage = Backbone.View.extend({
 		if (this.type === "boolean") {
 			return this.field + ":" + (this.$(".query-value").is(':checked') ? 'true' : 'false');
 		} else if (this.type === "text") {
+			var selectivity = this.$(".selectivity").val();
 			var value = this.$(".query-value").val().trim();
+			var tokens = value.split(" ");
 			
-			if (value.indexOf(" ") === -1) {
+			if (this.field === "text") {
+				// Special logic can be used for "text" in lucene - just include
+				// the text.
+				if (selectivity === "and" || tokens.length === 1) {
+					return value;
+				} else {
+					var query = "";
+					for (var i = 0; i < tokens.length; i++) {
+						query += tokens[i];
+						if (i !== tokens.length - 1) {
+							query += " OR ";
+						}
+					}
+					return query;
+				}
+			}
+			
+			if (tokens.length === 1) {
 				return this.field + ":\"" + value + "\"";
 			}
 			
-			var tokens = value.split(" ");
 			//val will either be 'and' or 'or' here; 'phrase' is not allowed in
 			//Lucene queries elsewhere
-			var joiner = this.$(".selectivity").val().toUpperCase();
+			var joiner = selectivity.toUpperCase();
 			
 			var query = "";
 			for (var i = 0; i < tokens.length; i++) {
-				query += this.field + ":" + tokens[i];
+				query += this.field + ":\"" + tokens[i] + "\"";
 				if (i !== tokens.length - 1) {
 					query += " " + joiner + " ";
 				}
