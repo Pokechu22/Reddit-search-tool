@@ -274,11 +274,11 @@ searchTool.PropertyPage = Backbone.View.extend({
 				// Special logic can be used for "text" in lucene - just include
 				// the text.
 				if (selectivity === "and" || tokens.length === 1) {
-					return value;
+					return this.escapeLuceneCharacters(value);
 				} else {
 					var query = "(";
 					for (var i = 0; i < tokens.length; i++) {
-						query += "\"" + tokens[i] + "\"";
+						query += this.escapeLuceneCharacters(tokens[i]);
 						if (i !== tokens.length - 1) {
 							query += " OR ";
 						}
@@ -289,7 +289,7 @@ searchTool.PropertyPage = Backbone.View.extend({
 			}
 			
 			if (tokens.length === 1) {
-				return this.field + ":\"" + value + "\"";
+				return this.field + ":" + this.escapeLuceneCharacters(value);
 			}
 			
 			//val will either be 'and' or 'or' here; 'phrase' is not allowed in
@@ -298,7 +298,7 @@ searchTool.PropertyPage = Backbone.View.extend({
 			
 			var query = this.field + ":(";
 			for (var i = 0; i < tokens.length; i++) {
-				query += "\"" + tokens[i] + "\"";
+				query += this.escapeLuceneCharacters(tokens[i]);
 				if (i !== tokens.length - 1) {
 					query += " " + joiner + " ";
 				}
@@ -310,6 +310,14 @@ searchTool.PropertyPage = Backbone.View.extend({
 			return "invalid";
 		}
 		return "none";
+	},
+	
+	escapeLuceneCharacters: function(term) {
+		// Escape special characters in lucene queries.  See
+		// https://lucene.apache.org/core/2_9_4/queryparsersyntax.html#N10180
+		
+		var re = /(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|\"|\~|\*|\?|\:|\\)/g
+		return term.replace(re, "\\$1");
 	},
 	
 	canUseLucene: function() {
