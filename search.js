@@ -26,69 +26,77 @@ searchTool.QueryTerm = Backbone.Model.extend({
 });
 
 searchTool.BooleanQueryTerm = searchTool.QueryTerm.extend({
-	value: false,
+	defaults: function() {
+		return {
+			value: false
+		}
+	},
 	
 	canUseLucene: function() {
 		return true;
 	},
 	
 	getLuceneQuery: function() {
-		return this.field + ":" + this.value;
+		return this.get("field") + ":" + this.get("value");
 	},
 	
 	getCloudsearchQuery: function() {
-		return this.field + ":" + (this.value ? 1 : 0);
+		return this.get("field") + ":" + (this.get("value") ? 1 : 0);
 	}
 });
 
 searchTool.TextualQueryTerm = searchTool.QueryTerm.extend({
-	value: "",
-	isInverted: false,
-	requireAll: true,
-	isPhrase: false,
+	defaults: function() {
+		return {
+			value: "",
+			isInverted: false,
+			requireAll: true,
+			isPhrase: false,
+		}
+	},
 	
 	canUseLucene: function() {
-		return this.isPhrase;
+		return this.get("isPhrase");
 	},
 	
 	getLuceneQuery: function() {
-		if (this.isPhrase) {
+		if (this.get("isPhrase")) {
 			return;
 		}
-		var words = this.value.split(" ")
-		var result = this.value;
-		if (!this.requireAll) {
+		var words = this.get("value").split(" ")
+		var result = this.get("value");
+		if (!this.get("requireAll")) {
 			result = words.join(" OR ");
 		}
 		
 		if (words.length > 1) {
-			result = this.field + ":(" + result + ")"
+			result = this.get("field") + ":(" + result + ")"
 		} else {
-			result = this.field + ":" + result;
+			result = this.get("field") + ":" + result;
 		}
 		return result;
 	},
 	
 	getCloudsearchQuery: function() {
 		var result;
-		if (this.isPhrase) {
+		if (this.get("isPhrase")) {
 			//Note: Single quote followed by double quote means phrase query
-			result = "(field " + this.field + " '\"" + this.value + "\"')";
+			result = "(field " + this.get("field") + " '\"" + this.get("value") + "\"')";
 		} else {
-			var words = this.value.split(" ");
+			var words = this.get("value").split(" ");
 			// Not sure of the best way of doing this; right now I'll modify the array in-place
 			for (var i = 0; i < words.length; i++) {
-				words[i] = "(field " + this.field + " '" + this.value + "')"
+				words[i] = "(field " + this.get("field") + " '" + this.get("value") + "')"
 			}
 			result = words.join(" ");
 		}
 		
-		if (this.requireAll) { // TODO: Check if there are multiple.
+		if (this.get("requireAll")) { // TODO: Check if there are multiple.
 			result = "(and " + result + ")";
 		} else {
 			result = "(or " + result + ")";
 		}
-		if (this.isInverted) {
+		if (this.get("isInverted")) {
 			result = "(not " + result + ")";
 		}
 		return result;
@@ -96,9 +104,13 @@ searchTool.TextualQueryTerm = searchTool.QueryTerm.extend({
 });
 
 searchTool.TimeQueryTerm = searchTool.QueryTerm.extend({
-	field: "text", //Is this needed?
-	from: new Date(),
-	to: new Date(),
+	defaults: function() {
+		return {
+			field: "text", //Is this needed?
+			from: new Date(),
+			to: new Date(),
+		}
+	},
 	
 	canUseLucene: function() {
 		return false;
@@ -111,14 +123,14 @@ searchTool.TimeQueryTerm = searchTool.QueryTerm.extend({
 	getCloudsearchQuery: function() {
 		//TODO: Timezone stuff with cloudsearch - pretty sure it's not UTC.
 		
-		var fromTimestamp = this.from.getTime();
-		var toTimestamp = this.to.getTime();
+		var fromTimestamp = this.get("from").getTime();
+		var toTimestamp = this.get("to").getTime();
 		
 		//Milliseconds to seconds - probably not the best way.
 		fromTimestamp = Math.round(fromTimestamp / 1000);
 		toTimestamp = Math.round(toTimestamp / 1000);
 		
-		return this.field + ":" + fromTimestamp + ".." + toTimestamp;
+		return this.get("field") + ":" + fromTimestamp + ".." + toTimestamp;
 	}
 });
 
@@ -132,6 +144,8 @@ searchTool.SearchQuery = Backbone.Collection.extend({
 	getQuery: function(useLucene) {
 		if (useLucene) {
 			var terms = this.map(function(item) {
+				console.log(item);
+				console.log(item instanceof searchTool.QueryTerm);
 				return item.getLuceneQuery();
 			});
 			
@@ -169,7 +183,7 @@ searchTool.QueryTermView = Backbone.View.extend({
 					"<option value=\"flair_css_class\">Flair CSS class</option>" + //Does this need to be there?
 					// Should we include num_comments?  It's not intended for public use...
 					"</select>" +
-					"</div><div><%= inner_template %></div>"),
+					"</div><div class=\"term-data\"></div>"),
 	booleanHTML: _.template("<label><input type=\"checkbox\" class=\"boolean-toggle\" <%- checked %>>Value</label>"),
 	textHTML: _.template("<select class=\"selectivity\" value=\"<%- selectivity %>\"><option value=\"all\">All of these words</option><option value=\"any\">Any of these words</option><option value=\"phrase\">All of these words in this order</option><option value=\"none\">None of these words</option></select><input class=\"text\" type=\"text\" value=\"<%- value %>\">"),
 	datepickerHTML: _.template("<label>From <input class=\"time-from\" type=\"text\"></label><label>To <input class=\"time-to\" type=\"text\"></label>"),
@@ -195,30 +209,54 @@ searchTool.QueryTermView = Backbone.View.extend({
 		"change .term-type" : "termTypeChanged",
 		"click .boolean-toggle" : "booleanValueChanged",
 		"change .selectivity" : "selectivityChanged",
-		"keypress .text" : "textChanged"
+		"input .text" : "textChanged"
 		//TODO: Delete button
 	},
 	
 	initialize: function() {
+		this.$el.html(this.template()); //Does this really need to be a template anymore?  I assume it will be when I18n is factored in...
+	
 		this.listenTo(this.model, 'change', this.render);
 		this.listenTo(this.model, 'destroy', this.remove);
+
+		this.termTypeChanged({target:this.$(".term-type")[0]}); //TODO: this is definitely the wrong way.
 	},
 	
 	termTypeChanged: function(e) {
 		var field = e.target.value;
-		var oldType = this.termTypes[this.model.field];
+		
+		var oldType = this.termTypes[this.model.get("field")];
 		var newType = this.termTypes[field];
 		
 		if (oldType === newType) {
 			// Don't need to change type
-			this.model.field = field;
+			this.model.set("field", field);
 		} else {
 			if (newType === "text") {
 				this.model = new searchTool.TextualQueryTerm({field: field});
+				
+				var selectivity;
+				
+				if (this.model.get("isInverted")) {
+					selectivity = "none";
+				} else if (this.model.get("isPhrase")) {
+					selectivity = "phrase";
+				} else if (!this.model.get("requireAll")) {
+					selectivity = "any";
+				} else {
+					selectivity = "all";
+				}
+				
+				this.$(".term-data").html(this.textHTML({value: this.model.get("value"), selectivity: selectivity}));
 			} else if (newType === "boolean") {
 				this.model = new searchTool.BooleanQueryTerm({field: field});
+				
+				this.$(".term-data").html(this.booleanHTML({checked: (this.model.get("value") ? "checked" : "")}));
 			} else if (newType === "date") {
 				this.model = new searchTool.TimeQueryTerm({field: field});
+				
+				//Will format wrong.
+				this.$(".term-data").html(this.datepickerHTML({from: this.model.get("from"), to: this.model.get("to")}));
 			}
 			
 			// Is this needed?
@@ -232,78 +270,20 @@ searchTool.QueryTermView = Backbone.View.extend({
 	},
 	
 	booleanValueChanged: function(e) {
-		this.model.value = e.target.value;
+		this.model.set("value", e.target.value);
 	},
 	selectivityChanged: function(e) {
 		var value = e.target.value;
-		this.model.isInverted = (value === "none");
-		this.model.requireAll = (value !== "any");
-		this.model.isPhrase = (value === "phrase");
+		this.model.set("isInverted", value === "none");
+		this.model.set("requireAll", value !== "any");
+		this.model.set("isPhrase", value === "phrase");
 	},
 	textChanged: function(e) {
-		this.model.value = e.target.value;
+		this.model.set("value", e.target.value);
 	},
 	
 	render: function() {
-		var innerHTML = ""
-		if (this.model instanceof searchTool.BooleanQueryTerm) {
-			innerHTML = this.booleanHTML({checked: (this.model.value ? "checked" : "")});
-		}
-		if (this.model instanceof searchTool.TextualQueryTerm) {
-			var selectivity;
-			
-			if (this.model.isInverted) {
-				selectivity = "none";
-			} else if (this.model.isPhrase) {
-				selectivity = "phrase";
-			} else if (!this.model.requireAll) {
-				selectivity = "any";
-			} else {
-				selectivity = "all";
-			}
-			
-			innerHTML = this.textHTML({value: this.model.value, selectivity: selectivity});
-		}
-		if (this.model instanceof searchTool.TimeQueryTerm) {
-			//Will format wrong.
-			innerHTML = this.datepickerHTML({from: this.model.from, to: this.model.to});
-		}
-		this.$el.html(this.template({ inner_template: innerHTML} ));
-		
-		if (this.model instanceof searchTool.TimeQueryTerm) {
-			// Scoping - this is not good.
-			var model = this.model;
-			
-			var from = this.$(".time-from");
-			var to = this.$(".time-to");
-			from.datepicker({
-				changeMonth: true,
-				changeYear: true,
-				numberOfMonths: 3,
-				dateFormat: "D, dd M yy", //RFC 2822 (http://tools.ietf.org/html/rfc2822#section-3.3) dates - uses the local time.
-				onClose: function(selectedDate) {
-					model.from = new Date(selectedDate);
-					to.datepicker( "option", "minDate", selectedDate );
-					
-					// Um...
-					this.render();
-				}
-			});
-			to.datepicker({
-				changeMonth: true,
-				changeYear: true,
-				numberOfMonths: 3,
-				dateFormat: "D, dd M yy",
-				onClose: function( selectedDate ) {
-					model.to = new Date(selectedDate);
-					from.datepicker( "option", "maxDate", selectedDate );
-					
-					this.render();
-				}
-			});
-			from.datepicker("setDate", this.model.from);
-			to.datepicker("setDate", this.model.to);
-		}
+		//I should NOT redo everything here.
 		return this;
 	},
 });
@@ -316,7 +296,7 @@ searchTool.SearchBox = Backbone.View.extend({
 
 		this.listenTo(this.query, 'add', this.addOne);
 		this.listenTo(this.query, 'reset', this.addAll);
-		this.listenTo(this.query, 'all', this.render);
+		this.listenTo(this.query, 'changed', console.log);
 
 		this.query.add(new searchTool.TextualQueryTerm());
 		console.log(this.query);
@@ -330,7 +310,7 @@ searchTool.SearchBox = Backbone.View.extend({
 	},
 	
 	render: function() {
-		this.$(".search-box").val(this.query.getQuery());
+		this.$(".search-box").val(this.query.getQuery(true));
 		//TODO: Switch between syntaxes
 	},
 	
