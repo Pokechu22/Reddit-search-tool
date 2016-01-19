@@ -2,107 +2,159 @@ var searchBox; //More wrong.
 
 searchTool = {
 	init: function() {
-		$('.search-box').each(function(idx, el) {
+		$('.search-form').each(function(idx, el) {
 			searchBox = new searchTool.SearchBox({el: el})
 		})
 	}
 }
 
-searchTool.SearchBox = Backbone.View.extend({
-	events: {
-		'click .add-search-option': 'addProperty',
-		'click .submit-button': 'submitQuery',
-		'change .syntax-checkbox': 'changeSyntax'
+searchTool.QueryTerm = Backbone.Model.extend({
+	field: "text",
+	
+	//Abstract?
+	canUseLucene: function() {
+		return true;
 	},
 	
-	searchOptions: [], //Should I have this automatically generated?
-	
-	initialize: function() {
-		if (this.searchOptions.length === 0) {
-			this.addProperty();
-		}
+	getLuceneQuery: function() {
+		return "nyi"
 	},
 	
-	addProperty: function(ev) {
-		//TODO: don't pass the searchBox like this
-		var propertyPage = new searchTool.PropertyPage({searchBox: this});
-		this.$(".search-options-list").append(propertyPage.render().$el);
-		this.searchOptions.push(propertyPage);
-	},
-	
-	useLucene: true,
-	changeSyntax: function() {
-		this.useLucene = this.$(".syntax-checkbox").is(":checked");
-		this.refreshQuery();
-	},
-	
-	refreshQuery: function() {
-		var query = "";
-		if (this.shouldUseLucene()) {
-			this.searchOptions.forEach(function(option) {
-				query += option.toLuceneQuery() + " ";
-			});
-		} else {
-			query = "(and";
-			this.searchOptions.forEach(function(option) {
-				var result = option.toCloudsearchQuery();
-				query += " ";
-				query += result;
-			});
-			query += ")";
-		}
-		
-		// TODO: This is wrong - I would use this.$, but the context is wrong or something
-		// and it doesn't find the right one (when using the date picker).
-		/*this.*/$(".search-box").val(query);
-	},
-	
-	shouldUseLucene: function() {
-		var canUseLucene = true;
-		this.searchOptions.forEach(function(option) {
-			if (!option.canUseLucene()) {
-				canUseLucene = false;
-			}
-		});
-		
-		var checkbox = this.$(".syntax-checkbox");
-		
-		var shouldUseLucene;
-		if (!canUseLucene) {
-			checkbox.prop("disabled", true);
-			checkbox.prop("checked", false);
-			return false;
-		} else {
-			checkbox.prop("disabled", false);
-			if (this.useLucene) {
-				checkbox.prop("checked", true);
-			} else {
-				checkbox.prop("checked", false);
-			}
-			
-			return this.useLucene;
-		}
-	},
-	
-	submitQuery: function() {
-		this.refreshQuery();
-		
-		var q = $(".search-box").val();
-		
-		var t = "all", sort = "relevance";
-		var syntax = this.shouldUseLucene() ? "lucene" : "cloudsearch";
-		
-		window.open("https://www.reddit.com/search?q=" + escape(q) + "&t=" + t + "&sort=" + sort + "&syntax=" + syntax, "_blank");
+	getCloudsearchQuery: function() {
+		return "nyi"
 	}
-})
+});
 
-searchTool.PropertyPage = Backbone.View.extend({
-	tagName: 'li',
-	className: 'add-search-term',
+searchTool.BooleanQueryTerm = searchTool.QueryTerm.extend({
+	value: false,
 	
-	dropDown: "<div>" +
-					"<select name=\"term-type\" class=\"term-type\">" +
-					"<option value=\"\">-----</option>" +
+	canUseLucene: function() {
+		return true;
+	},
+	
+	getLuceneQuery: function() {
+		return this.field + ":" + this.value;
+	},
+	
+	getCloudsearchQuery: function() {
+		return this.field + ":" + (this.value ? 1 : 0);
+	}
+});
+
+searchTool.TextualQueryTerm = searchTool.QueryTerm.extend({
+	value: "",
+	isInverted: false,
+	requireAll: true,
+	isPhrase: false,
+	
+	canUseLucene: function() {
+		return this.isPhrase;
+	},
+	
+	getLuceneQuery: function() {
+		if (this.isPhrase) {
+			return;
+		}
+		var words = this.value.split(" ")
+		var result = this.value;
+		if (!this.requireAll) {
+			result = words.join(" OR ");
+		}
+		
+		if (words.length > 1) {
+			result = this.field + ":(" + result + ")"
+		} else {
+			result = this.field + ":" + result;
+		}
+		return result;
+	},
+	
+	getCloudsearchQuery: function() {
+		var result;
+		if (this.isPhrase) {
+			//Note: Single quote followed by double quote means phrase query
+			result = "(field " + this.field + " '\"" + this.value + "\"')";
+		} else {
+			var words = this.value.split(" ");
+			// Not sure of the best way of doing this; right now I'll modify the array in-place
+			for (var i = 0; i < words.length; i++) {
+				words[i] = "(field " + this.field + " '" + this.value + "')"
+			}
+			result = words.join(" ");
+		}
+		
+		if (this.requireAll) { // TODO: Check if there are multiple.
+			result = "(and " + result + ")";
+		} else {
+			result = "(or " + result + ")";
+		}
+		if (this.isInverted) {
+			result = "(not " + result + ")";
+		}
+		return result;
+	}
+});
+
+searchTool.TimeQueryTerm = searchTool.QueryTerm.extend({
+	field: "text", //Is this needed?
+	from: new Date(),
+	to: new Date(),
+	
+	canUseLucene: function() {
+		return false;
+	},
+	
+	getLuceneQuery: function() {
+		return "NA";
+	},
+	
+	getCloudsearchQuery: function() {
+		//TODO: Timezone stuff with cloudsearch - pretty sure it's not UTC.
+		
+		var fromTimestamp = this.from.getTime();
+		var toTimestamp = this.to.getTime();
+		
+		//Milliseconds to seconds - probably not the best way.
+		fromTimestamp = Math.round(fromTimestamp / 1000);
+		toTimestamp = Math.round(toTimestamp / 1000);
+		
+		return this.field + ":" + fromTimestamp + ".." + toTimestamp;
+	}
+});
+
+searchTool.SearchQuery = Backbone.Collection.extend({
+	model: searchTool.QueryTerm,
+	
+	canUseLucene: function() {
+		return this.all(function(item) { return item.canUseLucene() } );
+	},
+	
+	getQuery: function(useLucene) {
+		if (useLucene) {
+			var terms = this.map(function(item) {
+				return item.getLuceneQuery();
+			});
+			
+			return terms.join(" ");
+		} else {
+			var terms = this.map(function(item) {
+				return item.getCloudsearchQuery();
+			});
+			
+			if (terms.length > 1) {
+				return "(and " + terms.join(" ") + ")";
+			} else {
+				return terms.join(" "); //Is this clear?
+			}
+		}
+	}
+	//TODO
+});
+
+searchTool.QueryTermView = Backbone.View.extend({
+	tagName: "li",
+	
+	template: _.template("<select class=\"term-type\">" +
 					"<option value=\"text\">Title and text</option>" +
 					"<option value=\"title\">Title</option>" +
 					"<option value=\"selftext\">Self text</option>" +
@@ -117,12 +169,12 @@ searchTool.PropertyPage = Backbone.View.extend({
 					"<option value=\"flair_css_class\">Flair CSS class</option>" + //Does this need to be there?
 					// Should we include num_comments?  It's not intended for public use...
 					"</select>" +
-					"</div>" +
-					"<div class=\"term-content\"></div>",
+					"</div><div><%= inner_template %></div>"),
+	booleanHTML: _.template("<label><input type=\"checkbox\" class=\"boolean-toggle\" <%- checked %>>Value</label>"),
+	textHTML: _.template("<select class=\"selectivity\" value=\"<%- selectivity %>\"><option value=\"all\">All of these words</option><option value=\"any\">Any of these words</option><option value=\"phrase\">All of these words in this order</option><option value=\"none\">None of these words</option></select><input class=\"text\" type=\"text\" value=\"<%- value %>\">"),
+	datepickerHTML: _.template("<label>From <input class=\"time-from\" type=\"text\"></label><label>To <input class=\"time-to\" type=\"text\"></label>"),
 	
-	field: '',
-	type: '',
-	
+	// Can I directly reference the constructors?
 	termTypes: {
 		text: 'text',
 		title: 'text',
@@ -138,228 +190,159 @@ searchTool.PropertyPage = Backbone.View.extend({
 		flair_css_class: 'text'
 	},
 	
-	booleanHTML: "<label for=\"1\">Yes/no: </label>" + 
-			"<input type=\"checkbox\" class=\"query-value\">",
-	
-	textHTML: "<label for=\"text\">Query: </label>" + 
-			"<select class=\"selectivity\" value=\"and\">" +
-			"<option value=\"and\">All of these words</option>" +
-			"<option value=\"or\">Any of these words</option>" +
-			"<option value=\"phrase\">All of these words in this order</option>" +
-			"<option value=\"not\">None of these words</option>" +
-			"</select>" +
-			"<input type=\"text\" class=\"query-value\">",
-	
-	datepickerHTML: "<label for=\"from\">From</label>" +
-				"<input type=\"text\" class=\"from\" name=\"from\">" +
-				"<label for=\"to\">to</label>" +
-				"<input type=\"text\" class=\"to\" name=\"to\">",
-	
+	// Might be excessive
 	events: {
-		'change .term-type': 'updateTermType',
-		'input .query-value': 'queryChanged',
-		'change .query-value': 'queryChanged',
-		'change .selectivity': 'queryChanged',
-		'input .from': 'queryChanged',
-		'input .to': 'queryChanged'
+		"change .term-type" : "termTypeChanged",
+		"click .boolean-toggle" : "booleanValueChanged",
+		"change .selectivity" : "selectivityChanged",
+		"keypress .text" : "textChanged"
+		//TODO: Delete button
 	},
 	
-	updateTermType: function(ev) {
-		this.field = ev.target.value;
-		this.type = this.termTypes[this.field];
+	initialize: function() {
+		this.listenTo(this.model, 'change', this.render);
+		this.listenTo(this.model, 'destroy', this.remove);
+	},
+	
+	termTypeChanged: function(e) {
+		var field = e.target.value;
+		var oldType = this.termTypes[this.model.field];
+		var newType = this.termTypes[field];
 		
-		var queryChanged = this.queryChanged; //TODO: This is WRONG.
-		
-		if (this.type === "boolean") {
-			this.$(".term-content").html(this.booleanHTML);
-		} else if (this.type === "text") {
-			this.$(".term-content").html(this.textHTML);
-		} else if (this.type === "date") {
-			this.$(".term-content").html(this.datepickerHTML);
+		if (oldType === newType) {
+			// Don't need to change type
+			this.model.field = field;
+		} else {
+			if (newType === "text") {
+				this.model = new searchTool.TextualQueryTerm({field: field});
+			} else if (newType === "boolean") {
+				this.model = new searchTool.BooleanQueryTerm({field: field});
+			} else if (newType === "date") {
+				this.model = new searchTool.TimeQueryTerm({field: field});
+			}
 			
-			var from = this.$(".from");
-			var to = this.$(".to");
+			// Is this needed?
+			
+			this.listenTo(this.model, 'change', this.render);
+			this.listenTo(this.model, 'destroy', this.remove);
+			
+			// How about this?
+			this.render();
+		}
+	},
+	
+	booleanValueChanged: function(e) {
+		this.model.value = e.target.value;
+	},
+	selectivityChanged: function(e) {
+		var value = e.target.value;
+		this.model.isInverted = (value === "none");
+		this.model.requireAll = (value !== "any");
+		this.model.isPhrase = (value === "phrase");
+	},
+	textChanged: function(e) {
+		this.model.value = e.target.value;
+	},
+	
+	render: function() {
+		var innerHTML = ""
+		if (this.model instanceof searchTool.BooleanQueryTerm) {
+			innerHTML = this.booleanHTML({checked: (this.model.value ? "checked" : "")});
+		}
+		if (this.model instanceof searchTool.TextualQueryTerm) {
+			var selectivity;
+			
+			if (this.model.isInverted) {
+				selectivity = "none";
+			} else if (this.model.isPhrase) {
+				selectivity = "phrase";
+			} else if (!this.model.requireAll) {
+				selectivity = "any";
+			} else {
+				selectivity = "all";
+			}
+			
+			innerHTML = this.textHTML({value: this.model.value, selectivity: selectivity});
+		}
+		if (this.model instanceof searchTool.TimeQueryTerm) {
+			//Will format wrong.
+			innerHTML = this.datepickerHTML({from: this.model.from, to: this.model.to});
+		}
+		this.$el.html(this.template({ inner_template: innerHTML} ));
+		
+		if (this.model instanceof searchTool.TimeQueryTerm) {
+			// Scoping - this is not good.
+			var model = this.model;
+			
+			var from = this.$(".time-from");
+			var to = this.$(".time-to");
 			from.datepicker({
-				defaultDate: "-1w",
 				changeMonth: true,
 				changeYear: true,
 				numberOfMonths: 3,
 				dateFormat: "D, dd M yy", //RFC 2822 (http://tools.ietf.org/html/rfc2822#section-3.3) dates - uses the local time.
-				onClose: function( selectedDate ) {
-					searchBox.refreshQuery();
+				onClose: function(selectedDate) {
+					model.from = new Date(selectedDate);
 					to.datepicker( "option", "minDate", selectedDate );
+					
+					// Um...
+					this.render();
 				}
 			});
 			to.datepicker({
-				defaultDate: "+0d",
 				changeMonth: true,
 				changeYear: true,
 				numberOfMonths: 3,
 				dateFormat: "D, dd M yy",
 				onClose: function( selectedDate ) {
-					searchBox.refreshQuery();
+					model.to = new Date(selectedDate);
 					from.datepicker( "option", "maxDate", selectedDate );
+					
+					this.render();
 				}
 			});
-		} else {
-			this.$(".term-content").html("");
+			from.datepicker("setDate", this.model.from);
+			to.datepicker("setDate", this.model.to);
 		}
-		
-		this.options.searchBox.refreshQuery();
+		return this;
 	},
-	
-	initialize: function() {
-		this.$el.html(this.dropDown);
-	},
-	
-	queryChanged: function() {
-		//TODO: This most definitely isn't the right way to store a parent view
-		this.options.searchBox.refreshQuery();
-	},
-	
-	toCloudsearchQuery: function() {
-		var field = this.field;
-		
-		if (this.type === "boolean") {
-			return field + ":" + (this.$(".query-value").is(':checked') ? '1' : '0');
-		} else if (this.type === "text") {
-			var selectivity = this.$(".selectivity").val();
-			var query = this.$(".query-value").val();
-			if (query.indexOf(" ") === -1) {
-				if (selectivity === "not") {
-					return "(not (field " + field + " '" + query + "'))"
-				} else {
-					return "(field " + field + " '" + query + "')"
-				}
-			}
-			if (selectivity === "and") {
-				var tokens = query.split(" ");
-				var result = "(and";
-				tokens.forEach(function(token) {
-					result += " ";
-					result += "(field " + field + " '" + token + "')";
-				});
-				result += ")";
-				return result;
-			} else if (selectivity === "or") {
-				var tokens = query.split(" ");
-				var result = "(or";
-				tokens.forEach(function(token) {
-					result += " ";
-					result += "(field " + field + " '" + token + "')";
-				});
-				result += ")";
-				return result;
-			} else if (selectivity === "not") {
-				var tokens = query.split(" ");
-				var result = "(not (and";
-				tokens.forEach(function(token) {
-					result += " ";
-					result += "(field " + field + " '" + token + "')";
-				});
-				result += "))";
-				return result;
-			} else if (selectivity === "phrase") {
-				return "(field " + field + " '\"" + query + "\"')";
-			}
-		} else if (this.type === "date") {
-			var fromTimestamp = Date.parse(this.$(".from").datepicker("getDate", false)) || 0;
-			var toTimestamp = Date.parse(this.$(".to").datepicker("getDate", false)) || Date.now();
-			
-			//Milliseconds to seconds - probably not the best way.
-			fromTimestamp = Math.round(fromTimestamp / 1000);
-			toTimestamp = Math.round(toTimestamp / 1000);
-			
-			return field + ":" + fromTimestamp + ".." + toTimestamp;
-		}
-		
-		return "none";
-	},
-	
-	toLuceneQuery: function() {
-		if (this.type === "boolean") {
-			return this.field + ":" + (this.$(".query-value").is(':checked') ? 'true' : 'false');
-		} else if (this.type === "text") {
-			var selectivity = this.$(".selectivity").val();
-			var value = this.$(".query-value").val().trim();
-			var tokens = value.split(" ");
-			
-			if (this.field === "text") {
-				// Special logic can be used for "text" in lucene - just include
-				// the text.
-				if (selectivity === "and" || tokens.length === 1) {
-					return this.escapeLuceneCharacters(value);
-				} else if (selectivity === "not") {
-					return "NOT (" + this.escapeLuceneCharacters(value) + ")";
-				} else {
-					var query = "(";
-					for (var i = 0; i < tokens.length; i++) {
-						query += this.escapeLuceneCharacters(tokens[i]);
-						if (i !== tokens.length - 1) {
-							query += " OR ";
-						}
-					}
-					query += ")";
-					return query;
-				}
-			}
-			
-			if (tokens.length === 1) {
-				if (selectivity === "not") {
-					return "NOT " +this.field + ":" + this.escapeLuceneCharacters(value);
-				} else {
-					return this.field + ":" + this.escapeLuceneCharacters(value);
-				}
-			}
-			
-			//val will either be 'and' or 'or' here; 'phrase' is not allowed in
-			//Lucene queries elsewhere
-			var joiner;
-			var query;
-			
-			if (selectivity === "not") {
-				joiner = "AND";
-				query = "NOT " + this.field + ":(";
-			} else {
-				joiner = selectivity.toUpperCase();
-				query = this.field + ":(";
-			}
-			
-			for (var i = 0; i < tokens.length; i++) {
-				query += this.escapeLuceneCharacters(tokens[i]);
-				if (i !== tokens.length - 1) {
-					query += " " + joiner + " ";
-				}
-			}
-			query += ")";
-			
-			return query;
-		} else if (this.type === "date") {
-			return "invalid";
-		}
-		return "none";
-	},
-	
-	escapeLuceneCharacters: function(term) {
-		// Escape special characters in lucene queries.  See
-		// https://lucene.apache.org/core/2_9_4/queryparsersyntax.html#N10180
-		
-		var re = /(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|\"|\~|\*|\?|\:|\\)/g
-		return term.replace(re, "\\$1");
-	},
-	
-	canUseLucene: function() {
-		if (this.type === "date") {
-			return false;
-		}
-		if (this.type === "text") {
-			if (this.$(".query-value").val().indexOf(" ") !== -1) {
-				return this.$(".selectivity").val() !== "phrase";
-			}
-		}
-		return true;
-	}
-})
+});
 
-//TODO: Move elsewhere.
+searchTool.SearchBox = Backbone.View.extend({
+	initialize: function() {
+		this.input = this.$(".add-search-option");
+		
+		this.query = new searchTool.SearchQuery();
+
+		this.listenTo(this.query, 'add', this.addOne);
+		this.listenTo(this.query, 'reset', this.addAll);
+		this.listenTo(this.query, 'all', this.render);
+
+		this.query.add(new searchTool.TextualQueryTerm());
+		console.log(this.query);
+	},
+	
+	events: {
+		"click .add-search-option": "addOption"
+	},
+	addOption: function(e) {
+		this.query.add(new searchTool.TextualQueryTerm());
+	},
+	
+	render: function() {
+		this.$(".search-box").val(this.query.getQuery());
+		//TODO: Switch between syntaxes
+	},
+	
+	addOne: function(term) {
+		var view = new searchTool.QueryTermView({model: term});
+		this.$(".search-options-list").append(view.render().el);
+	},
+	
+	addAll: function() {
+		this.query.each(this.addOne, this);
+	}
+
+});
+
 searchTool.init();
