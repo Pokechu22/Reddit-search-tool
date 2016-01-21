@@ -1,9 +1,6 @@
 searchTool = {
 	init: function() {
-		$('.search-form').each(function(idx, el) {
-			//TODO: 1 instance...
-			new searchTool.SearchBox({el: el})
-		})
+		this.searchBox = new searchTool.SearchBox({el: $("#search")});
 	}
 }
 
@@ -158,8 +155,8 @@ searchTool.SearchQuery = Backbone.Collection.extend({
 		return this.all(function(item) { return item.canUseLucene() } );
 	},
 	
-	getQuery: function(useLucene) {
-		if (useLucene) {
+	getQuery: function(syntax) {
+		if (syntax === "lucene") {
 			var terms = this.map(function(item) {
 				console.log(item);
 				console.log(item instanceof searchTool.QueryTerm);
@@ -167,7 +164,7 @@ searchTool.SearchQuery = Backbone.Collection.extend({
 			});
 			
 			return terms.join(" ");
-		} else {
+		} else if (syntax === "cloudsearch") {
 			var terms = this.map(function(item) {
 				return item.getCloudsearchQuery();
 			});
@@ -297,7 +294,7 @@ searchTool.QueryTermView = Backbone.View.extend({
 
 searchTool.SearchBox = Backbone.View.extend({
 	initialize: function() {
-		this.input = this.$(".add-search-option");
+		this.input = this.$("#add-search-option");
 		
 		this.query = new searchTool.SearchQuery();
 
@@ -310,11 +307,11 @@ searchTool.SearchBox = Backbone.View.extend({
 	},
 	
 	//User's choice about the query syntax.
-	useLucene: true,
+	syntax: "lucene",
 	
 	events: {
-		"click .add-search-option": "addOption",
-		"change .syntax-checkbox": "syntaxChanged"
+		"click #add-search-option": "addOption",
+		"change #search-syntax": "syntaxChanged"
 	},
 	
 	addOption: function(e) {
@@ -322,41 +319,39 @@ searchTool.SearchBox = Backbone.View.extend({
 	},
 	
 	syntaxChanged: function(e) {
-		console.log(e);
-		this.useLucene = e.target.checked;
+		this.syntax = e.target.value;
 		
 		this.render();
 	},
 	
 	render: function() {
-		var lucene = this.useLucene;
+		var syntax = this.syntax;
 		
-		var checkbox = this.$(".syntax-checkbox");
+		var dropdown = this.$("#search-syntax");
 		
 		if (!this.query.canUseLucene()) {
-			checkbox.prop("disabled", true);
-			checkbox.prop("checked", false);
+			this.$("#search-syntax > option[value=lucene]").prop("disabled", true);
+			dropdown.val("cloudsearch");
 			
-			lucene = false;
+			syntax = "cloudsearch";
 		} else {
-			checkbox.prop("disabled", false);
-			checkbox.prop("checked", lucene);
+			this.$("#search-syntax > option[value=lucene]").prop("disabled", false);
+			dropdown.val(syntax);
 		}
 		
-		this.$(".search-box").val(this.query.getQuery(lucene));
+		this.$("input[name=q]").val(this.query.getQuery(syntax));
 		
 		return this;
 	},
 	
 	addOne: function(term) {
 		var view = new searchTool.QueryTermView({model: term});
-		this.$(".search-options-list").append(view.render().el);
+		this.$("#search-options-list").append(view.render().el);
 	},
 	
 	addAll: function() {
 		this.query.each(this.addOne, this);
 	}
-
 });
 
 searchTool.init();

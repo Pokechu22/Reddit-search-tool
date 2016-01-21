@@ -6,16 +6,21 @@
 </head>
 <body>
 
-<div class="search-form">
-<input type="search" name="search-box" class="search-box" style="width: 100%" placeholder="Search query" readonly><br>
-<input type="checkbox" class="syntax-checkbox" name="syntax-checkbox" checked="checked"/><label for="syntax-checkbox">Use lucene (default) syntax</label>
+<!-- Reddit's form : https://github.com/reddit/reddit/blob/master/r2/r2/templates/searchform.html -->
+<form id="search" role="search">
+<input type="text" name="q" placeholder="search" style="width:100%" readonly><br>
+<select name="syntax" id="search-syntax">
+<!-- option value="plain" -->
+<option value="lucene" selected>Lucene (default)</option>
+<option value="cloudsearch">Cloudsearch</option>
+</select>
 
-<button class="add-search-option">Add search option</button>
-<ul class="search-options-list"></ul>
+<button type="button" id="add-search-option">Add search option</button>
+<ul id="search-options-list"></ul>
 
 <button class="submit-button">Search reddit.com</button>
 
-</div>
+</form>
 
 <script src="lib/jquery-2.1.1.js"></script>
 <script src="lib/es5-shim.js"></script>
