@@ -203,7 +203,7 @@ searchTool.QueryTermView = Backbone.View.extend({
 					"</div><div class=\"term-data\"></div>"),
 	booleanHTML: _.template("<label><input type=\"checkbox\" class=\"boolean-toggle\" <%- checked %>>Value</label>"),
 	textHTML: _.template("<select class=\"selectivity\" value=\"<%- selectivity %>\"><option value=\"all\">All of these words</option><option value=\"any\">Any of these words</option><option value=\"phrase\">All of these words in this order</option><option value=\"none\">None of these words</option></select><input class=\"text\" type=\"text\" value=\"<%- value %>\">"),
-	datepickerHTML: _.template("<label>From <input class=\"time-from\" type=\"text\"></label><label>To <input class=\"time-to\" type=\"text\"></label>"),
+	datepickerHTML: _.template("From <div style=\"display: inline-block\" class=\"time-from\"></div> To <div style=\"display: inline-block\" class=\"time-to\"></div>"),
 	
 	// Might be excessive
 	events: {
@@ -252,8 +252,33 @@ searchTool.QueryTermView = Backbone.View.extend({
 		} else if (newType === "boolean") {
 			this.$(".term-data").html(this.booleanHTML({checked: (this.model.get("value") ? "checked" : "")}));
 		} else if (newType === "date") {
-			//Will format wrong.
-			this.$(".term-data").html(this.datepickerHTML({from: this.model.get("from"), to: this.model.get("to")}));
+			this.$(".term-data").html(this.datepickerHTML());
+			
+			var model = this.model; //I still don't really understand JS scoping
+			
+			var from = this.$(".time-from");
+			var to = this.$(".time-to");
+			
+			from.datepicker({
+				changeMonth: true,
+				changeYear: true,
+				numberOfMonths: 1,
+				dateFormat: "D, dd M yy", //RFC 2822 (http://tools.ietf.org/html/rfc2822#section-3.3) dates - uses the local time.
+				onSelect: function(dateText, inst) {
+					model.set("from", new Date(dateText));
+					to.datepicker("option", "minDate", dateText);
+				}
+			});
+			to.datepicker({
+				changeMonth: true,
+				changeYear: true,
+				numberOfMonths: 1,
+				dateFormat: "D, dd M yy",
+				onSelect: function(dateText, inst) {
+					model.set("to", new Date(dateText));
+					from.datepicker("option", "maxDate", dateText);
+				}
+			});
 		}
 		
 		// I don't think this is needed...
