@@ -62,6 +62,20 @@ searchTool.QueryTerm = Backbone.Model.extend({
 		}
 	},
 	
+	canUsePlain: function() {
+		if (this.get("type") === "text") {
+			if (this.get("field") === "text") {
+				if (this.get("isInverted") === false &&
+						this.get("requireAll") === true &&
+						this.get("isPhrase") === false) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	},
+	
 	canUseLucene: function() {
 		var type = this.get("type");
 		
@@ -72,6 +86,11 @@ searchTool.QueryTerm = Backbone.Model.extend({
 		} else if (type === "date") {
 			return false;
 		}
+	},
+	
+	getPlainQuery: function() {
+		//We already know that the field is "text".
+		return this.get("value").trim();
 	},
 	
 	getLuceneQuery: function() {
@@ -151,15 +170,23 @@ searchTool.QueryTerm = Backbone.Model.extend({
 searchTool.SearchQuery = Backbone.Collection.extend({
 	model: searchTool.QueryTerm,
 	
+	canUsePlain: function() {
+		return this.all(function(item) { return item.canUsePlain() } );
+	},
+	
 	canUseLucene: function() {
 		return this.all(function(item) { return item.canUseLucene() } );
 	},
 	
 	getQuery: function(syntax) {
-		if (syntax === "lucene") {
+		if (syntax === "plain") {
 			var terms = this.map(function(item) {
-				console.log(item);
-				console.log(item instanceof searchTool.QueryTerm);
+				return item.getPlainQuery();
+			});
+			
+			return terms.join(" ");
+		} else if (syntax === "lucene") {
+			var terms = this.map(function(item) {
 				return item.getLuceneQuery();
 			});
 			
@@ -331,11 +358,24 @@ searchTool.SearchBox = Backbone.View.extend({
 		
 		if (!this.query.canUseLucene()) {
 			this.$("#search-syntax > option[value=lucene]").prop("disabled", true);
-			dropdown.val("cloudsearch");
+			this.$("#search-syntax > option[value=plain]").prop("disabled", true);
 			
+			dropdown.val("cloudsearch");
 			syntax = "cloudsearch";
+		} else if (!this.query.canUsePlain()) {
+			//Note: If we can't use lucene, we can't use plain.
+			
+			this.$("#search-syntax > option[value=lucene]").prop("disabled", false);
+			this.$("#search-syntax > option[value=plain]").prop("disabled", true);
+			
+			if (syntax === "plain") {
+				dropdown.val("lucene");
+				syntax = "lucene";
+			}
 		} else {
 			this.$("#search-syntax > option[value=lucene]").prop("disabled", false);
+			this.$("#search-syntax > option[value=plain]").prop("disabled", false);
+			
 			dropdown.val(syntax);
 		}
 		

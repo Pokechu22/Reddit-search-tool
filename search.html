@@ -13,8 +13,9 @@ to this later -->
 <form id="search" role="search" method="get">
 <input type="text" name="q" placeholder="search" style="width:100%" readonly><br>
 <select name="syntax" id="search-syntax">
-<!-- option value="plain" -->
-<option value="lucene" selected>Lucene (default)</option>
+<option value="plain" selected>Plain text</option>
+<option value="lucene">Lucene</option>
+<!-- I'll probably want to disable cloudsearch on local instances using solr... -->
 <option value="cloudsearch">Cloudsearch</option>
 </select>
 
