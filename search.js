@@ -71,7 +71,7 @@ searchTool.QueryTerm = Backbone.Model.extend({
 		if (type === "boolean") {
 			return true;
 		} else if (type === "text") {
-			return this.get("isPhrase");
+			return !this.get("isPhrase");
 		} else if (type === "date") {
 			return false;
 		}
@@ -293,16 +293,43 @@ searchTool.SearchBox = Backbone.View.extend({
 		console.log(this.query);
 	},
 	
+	//User's choice about the query syntax.
+	useLucene: true,
+	
 	events: {
-		"click .add-search-option": "addOption"
+		"click .add-search-option": "addOption",
+		"change .syntax-checkbox": "syntaxChanged"
 	},
+	
 	addOption: function(e) {
 		this.query.add(new searchTool.QueryTerm());
 	},
 	
+	syntaxChanged: function(e) {
+		console.log(e);
+		this.useLucene = e.target.checked;
+		
+		this.render();
+	},
+	
 	render: function() {
-		this.$(".search-box").val(this.query.getQuery(true));
-		//TODO: Switch between syntaxes
+		var lucene = this.useLucene;
+		
+		var checkbox = this.$(".syntax-checkbox");
+		
+		if (!this.query.canUseLucene()) {
+			checkbox.prop("disabled", true);
+			checkbox.prop("checked", false);
+			
+			lucene = false;
+		} else {
+			checkbox.prop("disabled", false);
+			checkbox.prop("checked", lucene);
+		}
+		
+		this.$(".search-box").val(this.query.getQuery(lucene));
+		
+		return this;
 	},
 	
 	addOne: function(term) {
