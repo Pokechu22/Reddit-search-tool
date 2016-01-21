@@ -86,8 +86,8 @@ searchTool.QueryTerm = Backbone.Model.extend({
 			if (this.get("isPhrase")) {
 				return;
 			}
-			var words = this.get("value").split(" ")
-			var result = this.get("value");
+			var result = this.get("value").trim();
+			var words = result.split(" ")
 			if (!this.get("requireAll")) {
 				result = words.join(" OR ");
 			}
@@ -117,12 +117,12 @@ searchTool.QueryTerm = Backbone.Model.extend({
 			var result;
 			if (this.get("isPhrase")) {
 				//Note: Single quote followed by double quote means phrase query
-				result = "(field " + this.get("field") + " '\"" + this.get("value") + "\"')";
+				result = "(field " + this.get("field") + " '\"" + this.get("value").trim() + "\"')";
 			} else {
-				var words = this.get("value").split(" ");
+				var words = this.get("value").trim().split(" ");
 				// Not sure of the best way of doing this; right now I'll modify the array in-place
 				for (var i = 0; i < words.length; i++) {
-					words[i] = "(field " + this.get("field") + " '" + this.get("value") + "')"
+					words[i] = "(field " + this.get("field") + " '" + words[i] + "')"
 				}
 				result = words.join(" ");
 			}
