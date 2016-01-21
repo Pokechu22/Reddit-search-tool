@@ -7,7 +7,10 @@
 <body>
 
 <!-- Reddit's form : https://github.com/reddit/reddit/blob/master/r2/r2/templates/searchform.html -->
-<form id="search" role="search">
+<!-- I will want to add 
+action="//reddit.com/search" target="_blank"
+to this later -->
+<form id="search" role="search" method="get">
 <input type="text" name="q" placeholder="search" style="width:100%" readonly><br>
 <select name="syntax" id="search-syntax">
 <!-- option value="plain" -->
@@ -18,8 +21,7 @@
 <button type="button" id="add-search-option">Add search option</button>
 <ul id="search-options-list"></ul>
 
-<button class="submit-button">Search reddit.com</button>
-
+<button type="submit">Search reddit.com</button>
 </form>
 
 <script src="lib/jquery-2.1.1.js"></script>
