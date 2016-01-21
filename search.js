@@ -88,7 +88,7 @@ searchTool.QueryTerm = Backbone.Model.extend({
 			}
 			var result = this.get("value").trim();
 			var words = result.split(" ")
-			if (!this.get("requireAll")) {
+			if (!this.get("requireAll") || this.get("isInverted")) {
 				result = words.join(" OR ");
 			}
 			
@@ -127,7 +127,7 @@ searchTool.QueryTerm = Backbone.Model.extend({
 				result = words.join(" ");
 			}
 			
-			if (this.get("requireAll")) { // TODO: Check if there are multiple.
+			if (this.get("requireAll") && !this.get("isInverted")) {
 				result = "(and " + result + ")";
 			} else {
 				result = "(or " + result + ")";
