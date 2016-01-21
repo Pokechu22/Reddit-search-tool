@@ -219,7 +219,6 @@ searchTool.QueryTermView = Backbone.View.extend({
 		
 		this.listenTo(this.model, 'change:type', this.termTypeChanged);
 		
-		//this.listenTo(this.model, 'change', this.render);
 		this.listenTo(this.model, 'destroy', this.remove);
 		
 		// Should this be called?
@@ -280,9 +279,6 @@ searchTool.QueryTermView = Backbone.View.extend({
 				}
 			});
 		}
-		
-		// I don't think this is needed...
-		this.render();
 	},
 	
 	booleanValueChanged: function(e) {
@@ -296,12 +292,7 @@ searchTool.QueryTermView = Backbone.View.extend({
 	},
 	textChanged: function(e) {
 		this.model.set("value", e.target.value);
-	},
-	
-	render: function() {
-		//I should NOT redo everything here.
-		return this;
-	},
+	}
 });
 
 searchTool.SearchBox = Backbone.View.extend({
