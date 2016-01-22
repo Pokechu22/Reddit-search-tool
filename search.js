@@ -97,7 +97,7 @@ searchTool.QueryTerm = Backbone.Model.extend({
 		var type = this.get("type");
 		
 		if (type === "boolean") {
-			return this.get("field") + ":" + this.get("value");
+			return this.get("field") + ":" + (this.get("value") ? "yes" : "no");
 		} else if (type === "text") {
 			if (this.get("isPhrase")) {
 				return;
