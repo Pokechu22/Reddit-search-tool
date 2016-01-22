@@ -236,6 +236,7 @@ searchTool.QueryTermView = Backbone.View.extend({
 		"change .selectivity" : "selectivityChanged",
 		"change .time-from" : "fromTimeChanged",
 		"change .time-to" : "toTimeChanged",
+		"input .text" : "textChanged"
 		//TODO: Delete button
 	},
 	
