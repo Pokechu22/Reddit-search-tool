@@ -224,7 +224,7 @@ searchTool.QueryTermView = Backbone.View.extend({
 					"<option value=\"flair_css_class\">Flair CSS class</option>" + //Does this need to be there?
 					// Should we include num_comments?  It's not intended for public use...
 					"</select>" +
-					"</div><div class=\"term-data\"></div>"),
+					"</div><div class=\"term-data\"></div><button class=\"delete-button\" type=\"button\">Delete</button>"),
 	booleanHTML: _.template("<label><input type=\"checkbox\" class=\"boolean-toggle\" <%- checked %>>Value</label>"),
 	textHTML: _.template("<select class=\"selectivity\" value=\"<%- selectivity %>\"><option value=\"all\">All of these words</option><option value=\"any\">Any of these words</option><option value=\"phrase\">All of these words in this order</option><option value=\"none\">None of these words</option></select><input class=\"text\" type=\"text\" value=\"<%- value %>\">"),
 	datepickerHTML: _.template("<input type=\"text\" class=\"time-from\" placeholder=\"from timestamp\"><input type=\"text\" class=\"time-to\" placeholder=\"to timestamp\">"),
@@ -232,12 +232,12 @@ searchTool.QueryTermView = Backbone.View.extend({
 	// Might be excessive
 	events: {
 		"change .field-dropdown" : "fieldDropdownChanged",
-		"click .boolean-toggle" : "booleanValueChanged",
+		"change .boolean-toggle" : "booleanValueChanged",
 		"change .selectivity" : "selectivityChanged",
 		"change .time-from" : "fromTimeChanged",
 		"change .time-to" : "toTimeChanged",
-		"input .text" : "textChanged"
-		//TODO: Delete button
+		"input .text" : "textChanged",
+		"click .delete-button" : "deleteClicked"
 	},
 	
 	initialize: function() {
@@ -316,6 +316,9 @@ searchTool.QueryTermView = Backbone.View.extend({
 		this.$(".time-from").datepicker("option", "maxDate", e.target.value);
 		var when = new Date(parseInt(e.target.value, 10));
 		this.model.set("to", when);
+	},
+	deleteClicked: function(e) {
+		this.model.destroy();
 	}
 });
 
@@ -327,7 +330,7 @@ searchTool.SearchBox = Backbone.View.extend({
 
 		this.listenTo(this.query, 'add', this.addOne);
 		this.listenTo(this.query, 'reset', this.addAll);
-		this.listenTo(this.query, 'change', this.render);
+		this.listenTo(this.query, 'all', this.render);
 
 		this.query.add(new searchTool.QueryTerm());
 		console.log(this.query);
