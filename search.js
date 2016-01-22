@@ -334,7 +334,7 @@ searchTool.SearchBox = Backbone.View.extend({
 	},
 	
 	//User's choice about the query syntax.
-	syntax: "lucene",
+	syntax: "plain",
 	
 	events: {
 		"click #add-search-option": "addOption",
