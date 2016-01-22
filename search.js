@@ -363,7 +363,6 @@ searchTool.SearchBox = Backbone.View.extend({
 			this.$("#search-syntax > option[value=lucene]").prop("disabled", true);
 			this.$("#search-syntax > option[value=plain]").prop("disabled", true);
 			
-			dropdown.val("cloudsearch");
 			syntax = "cloudsearch";
 		} else if (!this.query.canUsePlain()) {
 			//Note: If we can't use lucene, we can't use plain.
@@ -372,15 +371,17 @@ searchTool.SearchBox = Backbone.View.extend({
 			this.$("#search-syntax > option[value=plain]").prop("disabled", true);
 			
 			if (syntax === "plain") {
-				dropdown.val("lucene");
 				syntax = "lucene";
 			}
 		} else {
 			this.$("#search-syntax > option[value=lucene]").prop("disabled", false);
 			this.$("#search-syntax > option[value=plain]").prop("disabled", false);
-			
-			dropdown.val(syntax);
 		}
+		
+		// Ensure the dropdown is up to date with the selected syntax
+		// especially if it was changed.
+		// TODO: This may not be the right way.
+		dropdown.val(syntax);
 		
 		this.$("input[name=q]").val(this.query.getQuery(syntax));
 		
