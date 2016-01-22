@@ -227,14 +227,15 @@ searchTool.QueryTermView = Backbone.View.extend({
 					"</div><div class=\"term-data\"></div>"),
 	booleanHTML: _.template("<label><input type=\"checkbox\" class=\"boolean-toggle\" <%- checked %>>Value</label>"),
 	textHTML: _.template("<select class=\"selectivity\" value=\"<%- selectivity %>\"><option value=\"all\">All of these words</option><option value=\"any\">Any of these words</option><option value=\"phrase\">All of these words in this order</option><option value=\"none\">None of these words</option></select><input class=\"text\" type=\"text\" value=\"<%- value %>\">"),
-	datepickerHTML: _.template("From <div style=\"display: inline-block\" class=\"time-from\"></div> To <div style=\"display: inline-block\" class=\"time-to\"></div>"),
+	datepickerHTML: _.template("<input type=\"text\" class=\"time-from\" placeholder=\"from timestamp\"><input type=\"text\" class=\"time-to\" placeholder=\"to timestamp\">"),
 	
 	// Might be excessive
 	events: {
 		"change .field-dropdown" : "fieldDropdownChanged",
 		"click .boolean-toggle" : "booleanValueChanged",
 		"change .selectivity" : "selectivityChanged",
-		"input .text" : "textChanged"
+		"change .time-from" : "fromTimeChanged",
+		"change .time-to" : "toTimeChanged",
 		//TODO: Delete button
 	},
 	
@@ -277,30 +278,18 @@ searchTool.QueryTermView = Backbone.View.extend({
 		} else if (newType === "date") {
 			this.$(".term-data").html(this.datepickerHTML());
 			
-			var model = this.model; //I still don't really understand JS scoping
-			
 			var from = this.$(".time-from");
 			var to = this.$(".time-to");
 			
 			from.datepicker({
 				changeMonth: true,
 				changeYear: true,
-				numberOfMonths: 1,
-				dateFormat: "D, dd M yy", //RFC 2822 (http://tools.ietf.org/html/rfc2822#section-3.3) dates - uses the local time.
-				onSelect: function(dateText, inst) {
-					model.set("from", new Date(dateText));
-					to.datepicker("option", "minDate", dateText);
-				}
+				dateFormat: $.datepicker.TIMESTAMP
 			});
 			to.datepicker({
 				changeMonth: true,
 				changeYear: true,
-				numberOfMonths: 1,
-				dateFormat: "D, dd M yy",
-				onSelect: function(dateText, inst) {
-					model.set("to", new Date(dateText));
-					from.datepicker("option", "maxDate", dateText);
-				}
+				dateFormat: $.datepicker.TIMESTAMP
 			});
 		}
 	},
@@ -316,6 +305,16 @@ searchTool.QueryTermView = Backbone.View.extend({
 	},
 	textChanged: function(e) {
 		this.model.set("value", e.target.value);
+	},
+	fromTimeChanged: function(e) {
+		this.$(".time-to").datepicker("option", "minDate", e.target.value);
+		var when = new Date(parseInt(e.target.value, 10));
+		this.model.set("from", when);
+	},
+	toTimeChanged: function(e) {
+		this.$(".time-from").datepicker("option", "maxDate", e.target.value);
+		var when = new Date(parseInt(e.target.value, 10));
+		this.model.set("to", when);
 	}
 });
 
