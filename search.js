@@ -336,12 +336,17 @@ searchTool.SearchBox = Backbone.View.extend({
 		console.log(this.query);
 	},
 	
+	//TODO: This should be in a model, yes?  Not a view?
+	
 	//User's choice about the query syntax.
 	syntax: "plain",
+	time: "all",
+	sort: "relevance2",
 	
 	events: {
 		"click #add-search-option": "addOption",
-		"change #search-syntax": "syntaxChanged"
+		"change #search-syntax": "syntaxChanged",
+		"change #search-time": "timeChanged"
 	},
 	
 	addOption: function(e) {
@@ -354,10 +359,12 @@ searchTool.SearchBox = Backbone.View.extend({
 		this.render();
 	},
 	
+	timeChanged: function(e) {
+		this.time = e.target.value;
+	},
+	
 	render: function() {
 		var syntax = this.syntax;
-		
-		var dropdown = this.$("#search-syntax");
 		
 		if (!this.query.canUseLucene()) {
 			this.$("#search-syntax > option[value=lucene]").prop("disabled", true);
@@ -381,7 +388,20 @@ searchTool.SearchBox = Backbone.View.extend({
 		// Ensure the dropdown is up to date with the selected syntax
 		// especially if it was changed.
 		// TODO: This may not be the right way.
-		dropdown.val(syntax);
+		this.$("#search-syntax").val(syntax);
+		
+		var time = this.time;
+		
+		if (this.query.any(function(item) { return item.get("field") === "timestamp" } )) {
+			// If the user specified a custom timestamp, the default one doesn't work.
+			
+			this.$("#search-time > option[value!=all]").prop("disabled", true);
+			time = "all";
+		} else {
+			this.$("#search-time > option[value!=all]").prop("disabled", false);
+		}
+		
+		this.$("#search-time").val(time);
 		
 		this.$("input[name=q]").val(this.query.getQuery(syntax));
 		
