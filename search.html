@@ -8,7 +8,7 @@
 
 <!-- Reddit's form : https://github.com/reddit/reddit/blob/master/r2/r2/templates/searchform.html -->
 <form id="search" role="search" action="https://reddit.com/search" target="_blank" method="get">
-<input type="text" name="q" placeholder="search" style="width:100%" readonly><br>
+<input type="text" name="q" placeholder="search" style="width:100%" maxlength="512" readonly><br>
 <select name="syntax" id="search-syntax">
 <option value="plain" selected>Plain text</option>
 <option value="lucene">Lucene</option>
