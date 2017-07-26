@@ -6,12 +6,14 @@
 </head>
 <body>
 
+<h1>DEPRECATED - <a href="https://www.reddit.com/r/changelog/comments/6pi0kk/improving_search/">cloudsearch is being deprecated</a>, and search is being tweaked.  For now, this tool is no longer fully functional; once the search changes are finished, I may revisit it.  --<a href="https://www.reddit.com/user/Pokechu22/">/u/Pokechu22</a></h1>
+
 <!-- Reddit's form : https://github.com/reddit/reddit/blob/master/r2/r2/templates/searchform.html -->
 <form id="search" role="search" action="https://reddit.com/search" target="_blank" method="get">
 <input type="text" name="q" placeholder="search" style="width:100%" maxlength="512" readonly><br>
 
-<select name="sort" id="search-sort" value="relevance2">
-<option value="relevance2">relevance2 (beta)</option> <!-- Will want to control from feature flag -->
+<select name="sort" id="search-sort" value="relevance">
+<!-- No longer exists <option value="relevance2">relevance2 (beta)</option> -->
 <option value="relevance">relevance</option>
 <!-- Deprecated: Don't want to include it <option value="hot">hot</option> -->
 <option value="top">top</option>
@@ -32,7 +34,6 @@
 <!-- I'll probably want to disable cloudsearch on local instances using solr... -->
 <option value="cloudsearch">Cloudsearch</option>
 </select>
-
 <button type="button" id="add-search-option">Add search option</button>
 <ul id="search-options-list"></ul>
 
